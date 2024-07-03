@@ -1,0 +1,44 @@
+import os
+import sys 
+import time 
+from collections import defaultdict 
+from scapy.all import sniff, IP    
+
+
+
+
+
+LIMITEPACOTES = 45
+print(f"LIMITES DE PACOTES: {LIMITEPACOTES}")
+
+
+def pacotes_derede(pacote):
+    src_ip = pacote[IP].src   
+    contar_pacote[src_ip] += 1 
+
+    tempo_atual = time.time()
+    intervalo_tempo = tempo_atual - inicio_tempo[0]
+
+    if intervalo_tempo >= 1:
+        for ip, count in contar_pacote.items():
+            pacote_rate = count / tempo_atual
+            print(f'ip:{ip}\npacote rate:{pacote_rate}')
+            if pacote_rate > LIMITEPACOTES and ip not in ip_bloqueados:
+                print(f'o IP:{ip} FOI BLOQUEADO NO SISTEMA: DDOS\npacote rate:{pacote_rate}')
+                os.system(f'iptables -A INPUT -s {ip} -j DROP')
+                ip_bloqueados.add(ip)
+                
+        contar_pacote.clear()
+        inicio_tempo[0] = tempo_atual
+
+if __name__ == "__main__":
+    if os.geteuid() != 0:
+        print("This script requires root privileges.")
+        sys.exit(1)
+
+    contar_pacote = defaultdict
+    tempo_atual = [time.time()]
+    ip_bloqueados = set()
+
+    print("Monitoring network traffic...")
+    sniff(filter="ip", prn=pacotes_derede)
